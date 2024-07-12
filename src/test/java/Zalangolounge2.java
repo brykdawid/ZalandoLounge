@@ -1,5 +1,5 @@
 import org.openqa.selenium.By;
-import org.openqa.selenium.Keys;
+import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
@@ -9,7 +9,15 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.annotations.Test;
 
 import java.time.Duration;
+import java.util.List;
 
+/*
+cd C:\Program Files (x86)\Google\Chrome\Application
+chrome.exe --remote-debugging-port=9222 --user-data-dir=Y:\ChromeProfile
+
+reserved xpath = "//button[@class='styles__ArticleSizeButton-sc-1n1fwgw-0 iiqbEt']"Et
+available xpath = "//button[@class='styles__ArbuttticleSizeButton-sc-1n1fwgw-0 duljHq'] //span[text()='XXS']"
+ */
 public class Zalangolounge2 {
 
     @Test
@@ -17,36 +25,47 @@ public class Zalangolounge2 {
         ChromeOptions options = new ChromeOptions();
         options.setExperimentalOption("debuggerAddress", "127.0.0.1:9222");
         WebDriver driver = new ChromeDriver(options);
-        driver.get("https://www.zalando-lounge.pl/campaigns/ZZO2WWA/categories/118750576/articles/AS142A16Y-Q11?catalog-type=campaign&navigationSource=catalog");
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-
-        boolean isClickable = false;
-
-        while (!isClickable) {
+        driver.get("https://www.zalando-lounge.pl/campaigns/ZZO2TN9/categories/211691638/articles/L4Z21002F-Q11?catalog-type=campaign&navigationSource=catalog");
+        while (true) {
             try {
-                // Znajdź dokładnie interesujący Cię przycisk
-                WebElement button = driver.findElement(By.xpath("//button[@aria-checked='false']/span[contains(text(), 'Zarezerwowane')]"));
+                WebElement sizeContainer = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//div[@class='styles__ArticleSizeItemList-sc-dt4c4z-2 eaaKLK']")));
+                List<WebElement> sizeButtons = sizeContainer.findElements(By.xpath("//button[contains(@class, 'styles__ArticleSizeButton-sc-1n1fwgw-0')]"));
 
-                // Poczekaj, aż przycisk będzie widoczny i włączony
-                wait.until(ExpectedConditions.visibilityOf(button));
-                wait.until(ExpectedConditions.elementToBeClickable(button));
+                boolean sizeAvailable = false;
 
-                // Kliknij przycisk, jeśli jest klikalny
-                if (button.isEnabled() && button.isDisplayed()) {
-                    System.out.println("Przycisk jest klikalny! Klikanie...");
-                    button.click();
-                    isClickable = true; // ustawienie flagi zakończenia pętli
+                for (WebElement sizeButton : sizeButtons) {
+                    String sizeText = sizeButton.getText();
+                    System.out.printf("Checking size: %s\n", sizeText);
+
+                    if (sizeButton.isEnabled() && sizeText.equals("XXS")) {
+                        System.out.printf("Size XXS is available and enabled. Attempting to click.\n");
+                        sizeButton.click();
+                        sizeAvailable = true;
+                        break;
+                    }
                 }
-            } catch (Exception e) {
-                System.out.println("Przycisk nie jest jeszcze klikalny. Odświeżanie strony...");
-                // Odśwież stronę
+
+                if (sizeAvailable) {
+                    WebElement addToCartButton = wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//div[@id='addToCartButton']//button[contains(@class, 'auto-tests-add-to-cart-button')]")));
+                    addToCartButton.click();
+                    System.out.printf("PRODUCT ADDED TO CART\n");
+                    break;
+                } else {
+                    driver.navigate().refresh();
+                    System.out.printf("SIZE NOT AVAILABLE, REFRESHING\n");
+                    Thread.sleep(1000);
+                }
+            } catch (StaleElementReferenceException e) {
                 driver.navigate().refresh();
-                // Poczekaj na załadowanie strony
-                wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//button[@aria-checked='false']/span[contains(text(), 'Zarezerwowane')]")));
+                System.out.printf("STALE ELEMENT EXCEPTION, REFRESHING\n");
+                Thread.sleep(1000);
+            } catch (Exception e) {
+                System.out.printf("An unexpected error occurred: %s\n", e.getMessage());
+                driver.navigate().refresh();
+                Thread.sleep(1000);
             }
         }
 
-        // Zamknij przeglądarkę
-        driver.quit();
     }
 }
